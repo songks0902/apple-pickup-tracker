@@ -1,0 +1,8 @@
+.env
+data/
+__pycache__/
+*.pyc
+.git
+README.md
+test_*.py
+*.png

@@ -1,0 +1,41 @@
+# VPS deployment: use ONLY this file on the VPS (not merged with docker-compose.yml)
+#   docker compose -f docker-compose.vps.yml up -d --build
+# Web is NOT published externally; only Caddy 80/443 is public. Basic Auth stays in the app.
+services:
+  web:
+    build: .
+    image: apple-tracker:latest
+    env_file: .env
+    environment:
+      PORT: "8080"
+      CACHE_DIR: /app/data
+    expose:
+      - "8080"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+    mem_limit: 128m
+volumes:
+  caddy_data:
+  caddy_config:

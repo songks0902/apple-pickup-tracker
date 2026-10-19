@@ -1,0 +1,38 @@
+(proxy_cf) {
+	encode gzip
+	reverse_proxy web:8080 {
+		# Via Cloudflare: peer is a CF edge node, real visitor is CF-Connecting-IP (set by CF at edge).
+		# Caddy overwrites X-Forwarded-For with it, so visitors cannot spoof their IP to evade blocking.
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	log {
+		output stderr
+		format console
+	}
+}
+
+(proxy_direct) {
+	encode gzip
+	reverse_proxy web:8080 {
+		# Direct site: real client is the direct peer; ignore any spoofed forwarding headers.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	log {
+		output stderr
+		format console
+	}
+}
+
+tracker.example.com {
+	import proxy_cf
+}
