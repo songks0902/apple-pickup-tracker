@@ -16,15 +16,15 @@ checks={
  "mobile media": "@media (max-width:640px)" in h,
  "safe area": "env(safe-area-inset-bottom)" in h,
  "sticky glass header": "backdrop-filter" in h and 'class="top"' in h,
- "banner overview": "1 家店 · 0 有货 · 全部未发售" in h,
+ "banner overview": "1 stores · 0 in stock · all pre-launch" in h,
  "table exists": "<table>" in h and 'class="tablewrap"' in h,
- "compact pill": '>未售</span>' in h and '>有</span>' not in h or '>未售</span>' in h,
- "target column": 'data-target="1"' in h and '<span class=tag>目标</span>' in h,
- "filter": 'id="filterSel"' in h and "只看有货的店" in h,
- "buy button": "购买目标规格页" in h,
- "no store details": "门店地址" not in h and "Example Street" not in h and "555-01" not in h and "retail/example-store" not in h,
+ "compact pill": '>Pre-launch</span>' in h,
+ "target column": 'data-target="1"' in h and '<span class=tag>target</span>' in h,
+ "filter": 'id="filterSel"' in h and "Stores with stock only" in h,
+ "buy button": "Buy target configuration" in h,
+ "no store details": "Store address" not in h and "Example Street" not in h and "555-01" not in h and "retail/example-store" not in h,
  "sticky cols": "position:sticky" in h,
- "banner mobile wraps full": 'class="banner-full"' in h and "全部未发售（Check back for availability on 10.24）" in h and "white-space:normal" in h,
+ "banner mobile wraps full": 'class="banner-full"' in h and "all pre-launch (Check back for availability on 10.24)" in h and "white-space:normal" in h,
 }
 for k,v in checks.items(): print(("OK " if v else "FAIL ")+k); assert v, k
 # 8-col/12-row shape is asserted on live data in deploy checks; here 2 parts -> 3 header cells (store+2)

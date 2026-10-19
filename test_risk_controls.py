@@ -48,6 +48,6 @@ snap={"family":"iphoneduo","zip":"90210","target_part":"MK1H4LL/A","poll_seconds
  "parts":[{"part":"MK1H4LL/A","title":"iPhone Duo 512GB Night Sky","capacity":"512GB","color":"Night Sky","price":"$2,199","buyUrl":"https://example.com"}],
  "stores":[{"storeName":"Example Store","city":"Example City","state":"CA","postalCode":"90210","distanceText":"3 mi","availability":{"MK1H4LL/A":{"state":"prelaunch","quote":"Check back"}}}]}
 h=app.render_html(snap)
-assert "Apple 暂时限流，冷却中，下次探测" in h and "不是无货" in h and 'class="pill stale">未知</span>' in h
+assert "Apple is rate-limiting us; cooling down, next probe" in h and "not sold out" in h and 'class="pill stale">Unknown</span>' in h
 print("OK stale/cooling render: banner + unknown pills")
 print("ALL RISK CONTROL TESTS PASSED")

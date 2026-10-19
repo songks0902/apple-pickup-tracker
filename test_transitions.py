@@ -43,12 +43,12 @@ _base = {"product_title": "iPhone Duo 512GB Night Sky", "part": "MK1H4LL/A", "pr
 assert _app.send_alert(dict(_base, kind="available")) is True
 _body = _captured["payload"]["message"]; print("DRY-RUN available body:\n" + _body)
 assert _captured["payload"]["click"] == _base["buy_url"] and "Example Store" in _captured["payload"]["title"]
-for _bad in ["Example Street", "555-01", "Example City", "90210", "1.0", "营业", "地址", "电话"]:
+for _bad in ["Example Street", "555-01", "Example City", "90210", "1.0", "Hours", "Address", "Phone:"]:
     assert _bad not in _body, _bad
 print("OK dry-run available: no address/phone/city/zip/distance/hours, click=buyUrl")
 assert _app.send_alert(dict(_base, kind="soldout", quote="Unavailable for Pickup", prev_quote="Available Tomorrow")) is True
 _body2 = _captured["payload"]["message"]; print("DRY-RUN soldout body:\n" + _body2)
-assert "已无货: Unavailable for Pickup（之前: Available Tomorrow）" in _body2 and _captured["payload"]["click"] == _base["buy_url"]
+assert "Sold out: Unavailable for Pickup (previously: Available Tomorrow)" in _body2 and _captured["payload"]["click"] == _base["buy_url"]
 for _bad in ["Example Street", "555-01", "Example City", "90210", "1.0"]:
     assert _bad not in _body2, _bad
 print("OK dry-run soldout: minimal body, click=buyUrl")
@@ -87,7 +87,7 @@ assert alerts == [] and len(_web_before) == 0 and len(_emails()) == 0; print("OK
 alerts, st2 = _drive(st2, True, "Available Tomorrow")
 assert len(alerts) == 1 and len(_web_before) == 1 and len(_emails()) == 1
 _em = _emails()[0]; print("DRY-RUN email (available) Subject:", _em["Subject"]); print(_em.get_content())
-assert _em["To"] == "alert@example.com" and "店: Example Store" in _em.get_content()
+assert _em["To"] == "alert@example.com" and "Store: Example Store" in _em.get_content()
 for _bad in ["Example Street", "555-01", "Example City", "90210", "1.0"]:
     assert _bad not in _em.get_content(), _bad
 print("OK false->true: exactly 1 ntfy + 1 email, minimal body")
@@ -96,7 +96,7 @@ assert alerts == [] and len(_web_before) == 1 and len(_emails()) == 1; print("OK
 alerts, st2 = _drive(st2, False, "Unavailable for Pickup")
 assert len(alerts) == 1 and len(_web_before) == 2 and len(_emails()) == 2
 _em2 = _emails()[1]; print("DRY-RUN email (soldout) Subject:", _em2["Subject"]); print(_em2.get_content())
-assert "已无货: Unavailable for Pickup（之前: Available Tomorrow）" in _em2.get_content()
+assert "Sold out: Unavailable for Pickup (previously: Available Tomorrow)" in _em2.get_content()
 print("OK true->false: exactly 1 more ntfy + 1 email")
 _app.smtplib.SMTP = _orig_smtp; _app.send_alert = _orig_send_alert
 print("ALL TRANSITION TESTS PASSED")

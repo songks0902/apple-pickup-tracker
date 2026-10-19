@@ -69,10 +69,10 @@ def classify_state(pickup_display, quote_text=""):
     if d=="unavailable" or "unavailable for pickup" in q: return "unavailable"
     return "unknown"
 STATE_META={
- "available":("AVAILABLE 有货","#0a7a2e","#e6f7ea"),
- "prelaunch":("NOT YET 未发售","#9a6200","#fff3d6"),
- "unavailable":("UNAVAILABLE 无货","#8a1f1f","#fdeaea"),
- "unknown":("UNKNOWN 未知","#555","#f0f0f0"),
+ "available":("Available","#0a7a2e","#e6f7ea"),
+ "prelaunch":("Pre-launch","#9a6200","#fff3d6"),
+ "unavailable":("Unavailable","#8a1f1f","#fdeaea"),
+ "unknown":("Unknown","#555","#f0f0f0"),
 }
 
 def parse_meta(raw, family):
@@ -137,20 +137,20 @@ def build_alert_text(msg):
     short = product_title.replace("iPhone ", "").strip() or msg.get("part","")
     store = msg.get("store","")
     kind = msg.get("kind", "available")
-    is_test = bool(msg.get("test")) or "TEST" in str(msg.get("product","")) or "TEST" in store or "测试" in store
+    is_test = bool(msg.get("test")) or "TEST" in str(msg.get("product","")) or "TEST" in store
     # Push body is intentionally minimal (store name only, no address/phone/hours/city/distance):
     if kind == "soldout":
-        title = (f"TEST 测试忽略 — ❌ {short} 已无货 — {store}" if is_test else f"❌ {short} 已无货/售罄 — {store}")
+        title = (f"TEST ignore — ❌ {short} sold out — {store}" if is_test else f"❌ {short} sold out / out of stock — {store}")
         soldout_spec = product_title + (f" ({msg['part']})" if msg.get("part") else "")
-        lines = [soldout_spec, f"店: {store}"]
+        lines = [soldout_spec, f"Store: {store}"]
         if msg.get("quote"):
-            lines.append(f"已无货: {msg['quote']}" + (f"（之前: {msg['prev_quote']}）" if msg.get("prev_quote") else ""))
+            lines.append(f"Sold out: {msg['quote']}" + (f" (previously: {msg['prev_quote']})" if msg.get("prev_quote") else ""))
     else:
-        title = (f"TEST 测试忽略 — 🍎 {short} 有货 — {store}" if is_test else f"🍎 {short} 有货 — {store}")
-        lines = [spec_line, f"店: {store}"]
-        if msg.get("quote"): lines.append(f"取货: {msg['quote']}")
-    if msg.get("buy_url"): lines.append(f"购买规格页: {msg['buy_url']}")
-    if PUBLIC_URL: lines.append(f"监控页: {PUBLIC_URL}/")
+        title = (f"TEST ignore — 🍎 {short} in stock — {store}" if is_test else f"🍎 {short} in stock — {store}")
+        lines = [spec_line, f"Store: {store}"]
+        if msg.get("quote"): lines.append(f"Pickup: {msg['quote']}")
+    if msg.get("buy_url"): lines.append(f"Buy this configuration: {msg['buy_url']}")
+    if PUBLIC_URL: lines.append(f"Dashboard: {PUBLIC_URL}/")
     body = "\n".join(x for x in lines if x and not x.endswith(": "))
     if msg.get("title_override"): title = msg["title_override"]
     return title, body
@@ -440,34 +440,34 @@ def render_html(st):
     avail_stores=sum(1 for s in stores if any(a.get("state")=="available" for a in s.get("availability",{}).values()))
     target_avail=sum(1 for s in stores if s.get("availability",{}).get(target,{}).get("state")=="available")
     if avail_stores:
-        banner_cls="ok"; banner=f"✅ {len(stores)} 家店 · {avail_stores} 家有货" + (f" · 目标 {target_avail} 家有货" if target_avail else " · 目标暂无货")
+        banner_cls="ok"; banner=f"✅ {len(stores)} stores · {avail_stores} in stock" + (f" · target available at {target_avail}" if target_avail else " · target not yet available")
     elif counts.get("prelaunch"):
-        banner_cls="amber"; banner=f"🟠 {len(stores)} 家店 · 0 有货 · 全部未发售（Check back for availability on 10.24）"
-    elif stores: banner_cls="grey"; banner=f"{len(stores)} 家店 · 0 有货"
-    else: banner_cls="grey"; banner="暂无数据 — 等待第一次抓取"
-    _age=st.get("data_age_seconds"); _age_txt=(f"{_age//60} 分钟" if isinstance(_age,int) and _age>=60 else (f"{_age} 秒" if _age is not None else "未知"))
+        banner_cls="amber"; banner=f"🟠 {len(stores)} stores · 0 in stock · all pre-launch (Check back for availability on 10.24)"
+    elif stores: banner_cls="grey"; banner=f"{len(stores)} stores · 0 in stock"
+    else: banner_cls="grey"; banner="No data yet — waiting for first fetch"
+    _age=st.get("data_age_seconds"); _age_txt=(f"{_age//60} min" if isinstance(_age,int) and _age>=60 else (f"{_age} sec" if _age is not None else "unknown"))
     _probe=""
     if st.get("next_probe_at_epoch"):
         try: _probe=datetime.fromtimestamp(st["next_probe_at_epoch"],TZ).strftime("%H:%M")
         except Exception: _probe=""
     if st.get("backed_off"):
-        banner_cls="warn"; banner=f"⚠️ Apple 暂时限流，冷却中，下次探测 {_probe} · 数据已 {_age_txt}未更新（以下为上次已知状态，不是无货）"
+        banner_cls="warn"; banner=f"⚠️ Apple is rate-limiting us; cooling down, next probe {_probe} · data last updated {_age_txt} ago (showing last known status below, not sold out)"
     elif st.get("stale") and stores:
-        banner_cls="warn"; banner=f"⚠️ 数据已过期/未知 — 已 {_age_txt}未成功刷新（以下为上次已知状态，不是无货）"
+        banner_cls="warn"; banner=f"⚠️ Data is stale/unknown — no successful refresh for {_age_txt} (showing last known status below, not sold out)"
     # Mobile short banner: same meaning, shorter (no truncation/ellipsis anywhere)
     import re as _re
     _m=_re.search(r"on (\d+\.\d+)", banner)
-    if avail_stores: banner_short=f"✅ {len(stores)}店·{avail_stores}家有货" + (f"·目标{target_avail}家" if target_avail else "·目标暂无")
-    elif counts.get("prelaunch"): banner_short=f"🟠 {len(stores)}店·0有货·未发售" + (f"·{_m.group(1)}开售" if _m else "")
-    elif stores: banner_short=f"{len(stores)}店·0有货"
-    else: banner_short="暂无数据·等待抓取"
+    if avail_stores: banner_short=f"✅ {len(stores)} stores·{avail_stores} in stock" + (f"·target {target_avail}" if target_avail else "·target none")
+    elif counts.get("prelaunch"): banner_short=f"🟠 {len(stores)} stores·0 in stock·pre-launch" + (f"·on sale {_m.group(1)}" if _m else "")
+    elif stores: banner_short=f"{len(stores)} stores·0 in stock"
+    else: banner_short="No data yet·waiting"
     if banner_cls=="warn": banner_short=banner
-    short_color={"Star White":"白","Night Sky":"夜"}
+    short_color={"Star White":"Star White","Night Sky":"Night Sky"}
     def col_label(p):
         cap=p.get("capacity","").replace("GB","").replace("TB","T")
         return f"{cap} {short_color.get(p.get('color',''), p.get('color',''))}"
-    pill_short={"available":"有","prelaunch":"未售","unavailable":"无","unknown":"?"}
-    cols="".join(f'<th class="{"target" if p["part"]==target else ""}" data-target="{1 if p["part"]==target else 0}" title="{html.escape(p["part"])}">{html.escape(col_label(p))}{"<br><span class=tag>目标</span>" if p["part"]==target else ""}<br><small>{html.escape(p["part"][:5])}</small></th>' for p in parts)
+    pill_short={"available":"Available","prelaunch":"Pre-launch","unavailable":"Unavailable","unknown":"?"}
+    cols="".join(f'<th class="{"target" if p["part"]==target else ""}" data-target="{1 if p["part"]==target else 0}" title="{html.escape(p["part"])}">{html.escape(col_label(p))}{"<br><span class=tag>target</span>" if p["part"]==target else ""}<br><small>{html.escape(p["part"][:5])}</small></th>' for p in parts)
     rows=""
     for s in stores:
         has_av=any(a.get("state")=="available" for a in s.get("availability",{}).values())
@@ -475,16 +475,16 @@ def render_html(st):
         for p in parts:
             a=s.get("availability",{}).get(p["part"],{"state":"unknown","quote":"—"}); state=a.get("state","unknown")
             label,fg,bg=STATE_META.get(state,STATE_META["unknown"]); is_t=p["part"]==target
-            pill=('<span class="pill stale">未知</span>' if st.get("stale") else f'<span class="pill" style="color:{fg};background:{bg}">{pill_short.get(state,"?")}</span>')
-            if not st.get("stale") and state=="available" and p.get("buyUrl"): pill=f'<a class="buycell" href="{html.escape(p["buyUrl"], quote=True)}" target="_blank" rel="noopener" title="购买规格页">{pill}</a>'
+            pill=('<span class="pill stale">Unknown</span>' if st.get("stale") else f'<span class="pill" style="color:{fg};background:{bg}">{pill_short.get(state,"?")}</span>')
+            if not st.get("stale") and state=="available" and p.get("buyUrl"): pill=f'<a class="buycell" href="{html.escape(p["buyUrl"], quote=True)}" target="_blank" rel="noopener" title="Buy this configuration">{pill}</a>'
             cells+=f'<td class="{"target" if is_t else ""}" data-target="{1 if is_t else 0}" title="{html.escape(a.get("quote") or "")}">{pill}</td>'
         rows+=(f'<tr data-available="{1 if has_av else 0}"><th class="storecell" title="{html.escape(s["storeName"])}">'
                f'<b>{html.escape(s["storeName"])}</b><br><small>{html.escape(s["city"])} · {html.escape(str(s.get("distanceText") or s.get("distance","")))}</small></th>{cells}</tr>')
-    if not stores: rows='<tr><td colspan="99">暂无数据 — 等待第一次抓取。</td></tr>'
-    target_buy=f'<a class="buybtn" href="{html.escape(target_meta.get("buyUrl",""), quote=True)}" target="_blank" rel="noopener">购买目标规格页（{html.escape(target_label)}）↗</a>' if target_meta.get("buyUrl") else ""
+    if not stores: rows='<tr><td colspan="99">No data yet — waiting for first fetch.</td></tr>'
+    target_buy=f'<a class="buybtn" href="{html.escape(target_meta.get("buyUrl",""), quote=True)}" target="_blank" rel="noopener">Buy target configuration ({html.escape(target_label)}) ↗</a>' if target_meta.get("buyUrl") else ""
     fetched=st.get("fetched_at") or "—"
-    counts_str=f"有货 {counts.get('available',0)} · 未发售 {counts.get('prelaunch',0)} · 无货 {counts.get('unavailable',0)}"
-    return f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>iPhone Duo 取货监控</title>
+    counts_str=f"In stock {counts.get('available',0)} · Pre-launch {counts.get('prelaunch',0)} · Unavailable {counts.get('unavailable',0)}"
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>iPhone Duo Pickup Tracker</title>
 <style>
 :root{{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--sub:#6e6e73;--line:#d2d2d7;--target:#fff3cf;--head:rgba(255,255,255,.85)}}
 @media (prefers-color-scheme: dark){{:root{{--bg:#000;--card:#1c1c1e;--text:#f5f5f7;--sub:#aeaeb2;--line:#38383a;--target:#4a3a10;--head:rgba(28,28,30,.85)}}}}
@@ -499,13 +499,13 @@ main{{max-width:1180px;margin:0 auto;padding:10px 12px}} .banner{{padding:8px 12
 let nxt={st.get("next_poll_in_sec",0)};setInterval(()=>{{if(nxt>0){{nxt--;var e=document.getElementById('nxt');if(e)e.textContent=nxt;}}}},1000);setInterval(()=>location.reload(),60000);
 function applyFilter(v){{document.querySelectorAll('tbody tr').forEach(function(r){{r.style.display=(v==='available'&&r.dataset.available!=='1')?'none':'';}});document.querySelectorAll('[data-target]').forEach(function(c){{c.style.display=(v==='target'&&c.dataset.target!=='1'&&!c.classList.contains('storecell'))?'none':'';}});}}
 </script></head>
-<body><header class="top"><h1>🍎 iPhone Duo 取货监控</h1><span class="tpill">目标 {html.escape(target_label)} · {html.escape(target)} · {html.escape(st.get("zip",""))}</span><span class="tmeta">更新 {html.escape(str(fetched))} (PT) · 轮询 {st.get("poll_seconds")}s · 下次 <span id="nxt">{st.get("next_poll_in_sec",0)}</span>s · {counts_str}</span></header>
+<body><header class="top"><h1>🍎 iPhone Duo Pickup Tracker</h1><span class="tpill">Target {html.escape(target_label)} · {html.escape(target)} · {html.escape(st.get("zip",""))}</span><span class="tmeta">Updated {html.escape(str(fetched))} (PT) · polling every {st.get("poll_seconds")}s · next in <span id="nxt">{st.get("next_poll_in_sec",0)}</span>s · {counts_str}</span></header>
 <main><div class="banner {banner_cls}" title="{html.escape(banner, quote=True)}"><span class="banner-full">{html.escape(banner)}</span><span class="banner-short">{html.escape(banner_short)}</span></div>
-<form method="get" class="controls"><label>ZIP <input name="zip" value="{html.escape(st.get("zip",""))}" pattern="[0-9]{{5}}" size="5"></label><label>family <input name="family" value="{html.escape(st.get("family",""))}" size="12"></label><button>切换</button>
-<label>筛选 <select id="filterSel" onchange="applyFilter(this.value)"><option value="all">全部</option><option value="available">只看有货的店</option><option value="target">只看目标列</option></select></label>{target_buy}</form>
-<p class="legend" style="margin:4px 0">图例：列头数字=容量，白=Star White，夜=Night Sky；<b>有</b>=有货，<b>未售</b>=未发售（≠无货），<b>无</b>=无货；完整英文状态把鼠标/长按停在单元格上看。有货的 pill 可直接点去购买规格页。</p>
-<div class="tablewrap"><table><thead><tr><th class="storecell">门店</th>{cols}</tr></thead><tbody>{rows}</tbody></table></div>
-<p><small>页面每 60 秒整页刷新，只请求本地服务、不增加 Apple 抓取；被限流时显示缓存。</small></p></main></body></html>"""
+<form method="get" class="controls"><label>ZIP <input name="zip" value="{html.escape(st.get("zip",""))}" pattern="[0-9]{{5}}" size="5"></label><label>family <input name="family" value="{html.escape(st.get("family",""))}" size="12"></label><button>Switch</button>
+<label>Filter <select id="filterSel" onchange="applyFilter(this.value)"><option value="all">All</option><option value="available">Stores with stock only</option><option value="target">Target column only</option></select></label>{target_buy}</form>
+<p class="legend" style="margin:4px 0">Legend: column header = capacity + color; <b>Available</b> = in stock, <b>Pre-launch</b> = not yet on sale (not sold out), <b>Unavailable</b> = sold out; hover or long-press a cell for the full status. An in-stock pill links directly to the buy page for that configuration.</p>
+<div class="tablewrap"><table><thead><tr><th class="storecell">Store</th>{cols}</tr></thead><tbody>{rows}</tbody></table></div>
+<p><small>This page reloads every 60 seconds, requests only the local service, and does not increase Apple polling; cached data is shown while rate-limited.</small></p></main></body></html>"""
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args): sys.stderr.write("%s - %s\n"%(self.address_string(), fmt%args))
